@@ -135,13 +135,13 @@ link_statement:
 	    filesrc = resolve_path(strip_quotations($2), targetdir);
 	    filetarget = path_relative_to(strip_quotations($3), targetdir);
 	    printf("LINK(%s,%s)\n", filesrc, filetarget); 
-            if (access(filesrc, F_OK) == 0) {
-	    	if (access(filetarget, F_OK) == 0 && is_symlink(filetarget)) {
+	    if (access(filesrc, F_OK) == 0) {
+		    if (access(filetarget, F_OK) == 0 && is_symlink(filetarget)) {
 			unlink(filetarget);
 		}
-	    	symlink(filesrc, filetarget);
+		    symlink(filesrc, filetarget);
 	    } else {
-	        yyerror("Source file does not exist!");
+		yyerror("Source file does not exist!");
 	    }
 	  }
 	  ;

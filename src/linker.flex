@@ -15,12 +15,16 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 #include "y.tab.h"
 
 extern YYSTYPE yylval;
 extern FILE *yyin;
 extern void yyerror(const char *);
 extern char *path_from_string(const char *);
+extern char *strip_quotations(const char *);
+
+char *envsubst(char *);
 %}
 
 string     \"[^\"]*\" 
@@ -30,12 +34,12 @@ string     \"[^\"]*\"
 %%
 \n               { return NEWLINE; }
 link             { return LINK; }
-{string}         { yylval.string=strdup(yytext); printf("FILEPATH: %s\n", yytext); return FILEPATH; }
+{string}         { yylval.string=envsubst(strip_quotations(yytext)); printf("FILEPATH: %s\n", yylval.string); return FILEPATH; }
 
 include          { BEGIN(incl); }
 <incl>[ \t]*      /*eat whitespace*/
 <incl>{string}   { 
-	char *filename = path_from_string(yytext);
+	char *filename = path_from_string(envsubst(strip_quotations(yytext)));
 	printf("Including file %s...\n", filename);
 	yyin = fopen(filename, "r");
 	if (!yyin) {
@@ -55,3 +59,37 @@ include          { BEGIN(incl); }
 
 %%
 
+char *envsubst(char *str)
+{
+	char *result, *tmpvar, *tmpvarptr, *resultptr;
+	tmpvar = tmpvarptr = malloc(strlen(str));
+	result = resultptr = malloc(strlen(str)+1000);
+	*result = '\0';
+	int foundvar = 0;
+
+	while (*str != '\0') {
+		if (foundvar) {
+			if (!isalnum(*str) || *str == '_') {
+				foundvar = 0;
+				*tmpvarptr = '\0';
+				*resultptr = '\0';
+				char *envvar = getenv(tmpvar);
+				strcat(result, envvar ? envvar : "");
+				tmpvarptr = tmpvar;
+				resultptr = result + strlen(result);
+				continue;
+			} else {
+				*(tmpvarptr++) = *str;
+			}
+		} else {
+			if (*str == '$') {
+				foundvar = 1;
+			} else {
+				*(resultptr++) = *str;
+				*resultptr = '\0';
+			}
+		}
+		str++;
+	}
+	return result;
+}
