@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <regex.h>
 #include "y.tab.h"
 
 extern YYSTYPE yylval;
@@ -23,6 +24,7 @@ extern FILE *yyin;
 extern void yyerror(const char *);
 extern char *path_from_string(const char *);
 extern char *strip_quotations(const char *);
+extern char *regex_subst(const char *regex, char *str, char *substitute(char *match));
 
 char *envsubst(char *);
 %}
@@ -36,7 +38,7 @@ string     \"[^\"]*\"
 \n               { return NEWLINE; }
 link             { return LINK; }
 {string}         { yylval.string=envsubst(strip_quotations(yytext)); return FILEPATH; }
-#                { printf("Found comment\n"); BEGIN(comment); }
+#                { BEGIN(comment); }
 include          { BEGIN(incl); }
 <<EOF>> {
 	yypop_buffer_state();
@@ -60,41 +62,21 @@ include          { BEGIN(incl); }
 }
 
 <comment>[^\n]* {}
-<comment>\n     { printf("End of comment"); BEGIN(INITIAL); }
+<comment>\n     { BEGIN(INITIAL); }
 
 %%
 
+
+char *sub(char *str) { 
+	char *subst = getenv(str + 1);
+	if (subst == NULL) 
+		return "";
+	else 
+		return subst;
+}
+
 char *envsubst(char *str)
 {
-	char *result, *tmpvar, *tmpvarptr, *resultptr;
-	tmpvar = tmpvarptr = malloc(strlen(str));
-	result = resultptr = malloc(strlen(str)+1000);
-	*result = '\0';
-	int foundvar = 0;
-
-	while (*str != '\0') {
-		if (foundvar) {
-			if (!isalnum(*str) || *str == '_') {
-				foundvar = 0;
-				*tmpvarptr = '\0';
-				*resultptr = '\0';
-				char *envvar = getenv(tmpvar);
-				strcat(result, envvar ? envvar : "");
-				tmpvarptr = tmpvar;
-				resultptr = result + strlen(result);
-				continue;
-			} else {
-				*(tmpvarptr++) = *str;
-			}
-		} else {
-			if (*str == '$') {
-				foundvar = 1;
-			} else {
-				*(resultptr++) = *str;
-				*resultptr = '\0';
-			}
-		}
-		str++;
-	}
-	return result;
+	const char *regex = "\\$([[:alnum:]_]+)";
+	return regex_subst(regex, str, sub);
 }

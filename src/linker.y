@@ -2,9 +2,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <regex.h>
 #include <unistd.h>
 #include <libgen.h>
 #include <errno.h>
+#include <limits.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -19,7 +21,7 @@ char *strip_quotations(const char *);
 char *resolve_path(const char *, const char *);
 char *path_from_string(const char *);
 char *path_relative_to(const char *, const char *);
-int is_symlink(const char *);
+char *regex_subst(const char *regex, char *str, char *substitute(char *match));
 
 void yyerror(const char *str)
 {
@@ -43,9 +45,41 @@ int main(int argc, char **argv)
         yyparse();
 } 
 
+char *regex_subst(const char *regex, char *str, char *substitute(char *match))
+{
+	const int ngroups = 1;
+	char *curr_str;
+
+	/* First, compile regex */
+	regex_t compiled;
+	regcomp(&compiled, regex, REG_EXTENDED);
+
+	/* Find number of capture groups and allocate memory */
+	regmatch_t matches[ngroups];
+	
+	curr_str = strcpy(malloc(strlen(str)), str);
+	while (regexec(&compiled, curr_str, ngroups, matches, 0) != REG_NOMATCH) {
+		char str_copy[strlen(curr_str) + 1];  
+		strcpy(str_copy, curr_str);
+		str_copy[matches[0].rm_eo] = '\0'; 
+		char *identifier = str_copy + matches[0].rm_so;
+
+		char *replacement = substitute(identifier);
+		const int new_str_len = strlen(curr_str) + (strlen(replacement) - strlen(identifier));
+		char *new_str = malloc(new_str_len);
+		strncpy(new_str, curr_str, new_str_len);
+		new_str[matches[0].rm_so] = '\0'; // add null terminator
+		strcat(new_str, replacement);
+		strcat(new_str, curr_str + matches[0].rm_eo);
+		free(curr_str);
+		curr_str = new_str;
+	}
+	return curr_str;
+}
+
 char *resolve_path(const char *path, const char *relative_to)
 {
-	char *result = malloc(1000);
+	char *result = malloc(PATH_MAX);
 	if (!relative_to) {
 		realpath(path, result);
 	} else {
@@ -63,12 +97,15 @@ char *path_relative_to(const char *path, const char *dir)
 {
 	if (*path == '/') return path;
 	
-	int len = strlen(path) + strlen(dir) + 1;
+	int len = strlen(path) + strlen(dir) + 100;
 	char *result; 
 
 	result = malloc(len);
+	strcpy(result, dir);
+	strcat(result, "/");
+	strcat(result, path);
 	
-	return strcat(strcat(strcpy(result, dir), "/"), path);
+	return result;
 }
 
 char *path_from_string(const char *string_const)
@@ -77,34 +114,14 @@ char *path_from_string(const char *string_const)
 	return result;
 }
 
+char *quote_sub(char *str) {
+	return "";
+}
+
 char *strip_quotations(const char *string_const)
 {
-	int len;
-	char *target, *ptrsrc, *ptrtgt;
-	len = strlen(string_const);
-	target = (char *) malloc(len-2);
-	ptrsrc = (char *) string_const;
-	ptrtgt = target;
-
-	for (; *ptrsrc != '\0'; ptrsrc++) {
-		if (*ptrsrc != '"') {
-			*(ptrtgt++) = *ptrsrc;
-		}
-	}
-	*ptrtgt = '\0';
-	return target;
+	return regex_subst("\"", string_const, quote_sub);
 }
-
-int is_symlink(const char *filename)
-{
-	struct stat p_statbuf;
-	if (lstat(filename, &p_statbuf) < 0) {
-		yyerror("something went wrong calling lstat");
-	}
-
-	return S_ISLNK(p_statbuf.st_mode) == 1;
-}
-
 
 %}
 
