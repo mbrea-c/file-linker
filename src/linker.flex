@@ -30,13 +30,23 @@ char *envsubst(char *);
 string     \"[^\"]*\" 
 
 %x incl
+%x comment
 
 %%
 \n               { return NEWLINE; }
 link             { return LINK; }
 {string}         { yylval.string=envsubst(strip_quotations(yytext)); return FILEPATH; }
-
+#                { printf("Found comment\n"); BEGIN(comment); }
 include          { BEGIN(incl); }
+<<EOF>> {
+	yypop_buffer_state();
+
+	if ( !YY_CURRENT_BUFFER )
+	{
+		yyterminate();
+	}
+}
+
 <incl>[ \t]*      /*eat whitespace*/
 <incl>{string}   { 
 	char *filename = path_from_string(envsubst(strip_quotations(yytext)));
@@ -48,14 +58,9 @@ include          { BEGIN(incl); }
 	yypush_buffer_state(yy_create_buffer(yyin, YY_BUF_SIZE));
 	BEGIN(INITIAL);
 }
-<<EOF>> {
-	yypop_buffer_state();
 
-	if ( !YY_CURRENT_BUFFER )
-	{
-		yyterminate();
-	}
-}
+<comment>[^\n]* {}
+<comment>\n     { printf("End of comment"); BEGIN(INITIAL); }
 
 %%
 
