@@ -34,7 +34,7 @@ string     \"[^\"]*\"
 %%
 \n               { return NEWLINE; }
 link             { return LINK; }
-{string}         { yylval.string=envsubst(strip_quotations(yytext)); printf("FILEPATH: %s\n", yylval.string); return FILEPATH; }
+{string}         { yylval.string=envsubst(strip_quotations(yytext)); return FILEPATH; }
 
 include          { BEGIN(incl); }
 <incl>[ \t]*      /*eat whitespace*/

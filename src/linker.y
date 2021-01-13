@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <libgen.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -36,24 +37,23 @@ int main(int argc, char **argv)
 	if (argc < 2) yyerror("missing file argument");
 	yyin = fopen(argv[1], "r");
 	if (!yyin) yyerror("Target file not found");
-
 	targetdir = dirname(resolve_path(argv[1], NULL));
-	printf("%s\n", targetdir);
+	printf("%s/%s\n", targetdir, argv[1]);
 
         yyparse();
 } 
 
 char *resolve_path(const char *path, const char *relative_to)
 {
-	char *result;
+	char *result = malloc(1000);
 	if (!relative_to) {
-		result = realpath(path, NULL);
+		realpath(path, result);
 	} else {
-		result = realpath(path_relative_to(path, relative_to), NULL);
+		realpath(path_relative_to(path, relative_to), result);
 	}
 	if (!result) {
 		char *err = malloc(100);
-		snprintf(err, 100, "File path not found: %s", path);
+		snprintf(err, 100, "%s", strerror(errno));
 		yyerror(err);
 	}
 	return result;
@@ -134,12 +134,16 @@ link_statement:
 	    const char *filesrc, *filetarget;
 	    filesrc = resolve_path(strip_quotations($2), targetdir);
 	    filetarget = path_relative_to(strip_quotations($3), targetdir);
-	    printf("LINK(%s,%s)\n", filesrc, filetarget); 
 	    if (access(filesrc, F_OK) == 0) {
-		    if (access(filetarget, F_OK) == 0 && is_symlink(filetarget)) {
+		    if (access(filetarget, F_OK) == 0) { //TODO: Ensure filetarget is symlink
 			unlink(filetarget);
 		}
-		    symlink(filesrc, filetarget);
+		if (symlink(filesrc, filetarget) == 0) {
+			printf("Created link %s --> %s)\n", filetarget, filesrc);
+		} else {
+			perror("");
+			yyerror("Symlink could not be created");
+		}	
 	    } else {
 		yyerror("Source file does not exist!");
 	    }
