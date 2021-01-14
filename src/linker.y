@@ -123,6 +123,16 @@ char *strip_quotations(const char *string_const)
 	return regex_subst("\"", string_const, quote_sub);
 }
 
+int is_symlink(const char *filename)
+{
+	struct stat p_statbuf;
+	if (lstat(filename, &p_statbuf) < 0) {
+		return 0;
+	}
+
+	return S_ISLNK(p_statbuf.st_mode);
+}
+
 %}
 
 %token NEWLINE LINK
@@ -152,7 +162,7 @@ link_statement:
 	    filesrc = resolve_path(strip_quotations($2), targetdir);
 	    filetarget = path_relative_to(strip_quotations($3), targetdir);
 	    if (access(filesrc, F_OK) == 0) {
-		    if (access(filetarget, F_OK) == 0) { //TODO: Ensure filetarget is symlink
+		if (is_symlink(filetarget)) {
 			unlink(filetarget);
 		}
 		if (symlink(filesrc, filetarget) == 0) {

@@ -1,4 +1,4 @@
-/* vim: filetype=lex
+/*
  * Sample Scanner1: 
  * Description: Replace the string "username" from standard input 
  *              with the user's login name (e.g. lgao)
@@ -41,6 +41,7 @@ link             { return LINK; }
 #                { BEGIN(comment); }
 include          { BEGIN(incl); }
 <<EOF>> {
+	printf("Done with file\n");
 	yypop_buffer_state();
 
 	if ( !YY_CURRENT_BUFFER )
