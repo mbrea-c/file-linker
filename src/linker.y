@@ -1,8 +1,6 @@
 %{
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
-#include <regex.h>
 #include <unistd.h>
 #include <libgen.h>
 #include <errno.h>
