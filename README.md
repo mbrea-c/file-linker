@@ -1,3 +1,5 @@
+**IMPORTANT:** This project is deprecated and unmaintained; there are some unfixed bugs (segfaults!), so use at your own peril. It has been superseded by [mbrea-c/dotlink](https://github.com/mbrea-c/dotlink), which is written in Haskell using a monadic parsing approach and (as far as I know) is complete and bug-free.
+
 # File linker
 
 Simple program that parses _linkconfig_ formatted configuration files and creates 
